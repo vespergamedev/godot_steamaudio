@@ -67,6 +67,8 @@ With a Makefile like this, you can simply run "make" in the directory above your
 
 ***Sample Project***
 
+A sample project with multiple test scenes is available at https://github.com/vespergamedev/godot\_steamaudio\_sample\_project
+
 ***Current Status***
 
 At this time there is support for rendering 3D ambisonics, volumetric occlusion by geometry, transmission through geometry, and distance attenuation. 
