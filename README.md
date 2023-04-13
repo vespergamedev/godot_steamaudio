@@ -67,7 +67,7 @@ With a Makefile like this, you can simply run "make" in the directory above your
 
 ***Sample Project***
 
-A sample project with multiple test scenes is available at https://github.com/vespergamedev/godot\_steamaudio\_sample\_project
+A sample project with multiple test scenes is available at https://github.com/vespergamedev/godot_steamaudio_sample_project
 
 ***Current Status***
 
