@@ -57,8 +57,8 @@ public:
     Error init();
     void finish();
     bool is_indirect_busy();
-    bool tick_indirect();
-    bool tick_direct();
+    void tick_indirect();
+    void tick_direct();
     bool register_listener(SteamAudioListener * rx);
     bool deregister_listener();
     bool add_source(LocalStateSteamAudio * local_state);
