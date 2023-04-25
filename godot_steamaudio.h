@@ -71,16 +71,46 @@ struct EffectSteamAudio {
     IPLAmbisonicsEncodeEffect ambisonics_enc_effect = nullptr;
 };
 
-struct SimOutputsSteamAudio {
-    float distance_attenuation = 0.0f;
-    IPLCoordinateSpace3 listener_orientation;
-    IPLVector3 ambisonics_direction;
-    IPLDirectEffectParams direct_effect_params;
-    IPLSimulationOutputs direct_outputs{};
-    IPLSimulationOutputs indirect_outputs{};
-    bool direct_valid = false;
-    bool indirect_valid = false;
+struct DirectOutputsSteamAudio {
+     float distance_attenuation = 0.0f;
+     IPLCoordinateSpace3 listener_orientation;
+     IPLVector3 ambisonics_direction;
+     IPLSimulationOutputs direct_sim_outputs{};
 };
+
+struct IndirectOutputsSteamAudio {
+    IPLSimulationOutputs indirect_sim_outputs{};
+};
+
+struct SimOutputsSteamAudio {
+    DirectOutputsSteamAudio direct_outputs[2];
+    IndirectOutputsSteamAudio indirect_outputs[2];
+   
+    std::atomic<int> direct_idx = 0;
+    std::atomic<int> indirect_idx = 0;
+    std::atomic<bool> direct_valid[2] = {false,false};
+    std::atomic<bool> indirect_valid[2] = {false,false};
+    std::atomic<bool> direct_read_done = false;
+    std::atomic<bool> indirect_read_done = false;
+    
+    bool indirect_sim_started = false;
+};
+ 
+inline int get_read_direct_idx(SimOutputsSteamAudio * sim_outputs) {
+    return (1-sim_outputs->direct_idx.load());
+}
+
+inline int get_read_indirect_idx(SimOutputsSteamAudio * sim_outputs) {
+    return (1-sim_outputs->indirect_idx.load());
+}
+
+inline int get_write_direct_idx(SimOutputsSteamAudio * sim_outputs) {
+    return (sim_outputs->direct_idx.load());
+}
+
+inline int get_write_indirect_idx(SimOutputsSteamAudio * sim_outputs) {
+    return (sim_outputs->indirect_idx.load());
+}
 
 //Should be in SteamAudioServer
 struct GlobalStateSteamAudio {
@@ -114,10 +144,10 @@ struct LocalStateSteamAudio {
     int setting_occlusion_num_samples = 16;
 
 // Sim state
-    Mutex sim_outputs_mutex;
     SimOutputsSteamAudio sim_outputs;
     float distance_attenuation_cache;
     Vector3 ambisonics_direction_cache;
+    IPLCoordinateSpace3 source_coordinates_cache;
     SteamAudioSource source;
 
 // Buffers
@@ -132,8 +162,7 @@ struct LocalStateSteamAudio {
 
 int spatialize_steamaudio(GlobalStateSteamAudio& global_state,
                           LocalStateSteamAudio& local_state,
-                          EffectSteamAudio& effect,
-                          SimOutputsSteamAudio& sim_outputs);
+                          EffectSteamAudio& effect);
 
 inline Vector3 IPLVec3toGDVec3(IPLVector3 vec_in);
 inline IPLVector3 GDVec3toIPLVec3(Vector3 vec_in);

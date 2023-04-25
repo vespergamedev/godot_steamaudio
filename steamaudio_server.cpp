@@ -35,9 +35,9 @@ bool SteamAudioServer::is_indirect_busy() {
     return indirect_thread_processing.load();
 }
 
-bool SteamAudioServer::tick_direct() {
+void SteamAudioServer::tick_direct() {
     if (listener==nullptr) {
-        return false;
+        return;
     }
     iplSceneCommit(global_state.scene);
     iplSimulatorSetScene(global_state.simulator, global_state.scene);
@@ -70,6 +70,7 @@ bool SteamAudioServer::tick_direct() {
         source_coordinates.up = IPLVector3{0.0f,0.0f,0.0f};
         source_coordinates.right = IPLVector3{0.0f,0.0f,0.0f};
         source_coordinates.origin = GDVec3toIPLVec3(source_pos);
+        local_state->source_coordinates_cache = source_coordinates;
 
         IPLSimulationInputs inputs{};
         inputs.flags = IPL_SIMULATIONFLAGS_DIRECT;
@@ -91,26 +92,39 @@ bool SteamAudioServer::tick_direct() {
 
     for (LocalStateSteamAudio * local_state : local_states) {
         //Write outputs
-        local_state->sim_outputs_mutex.lock();
-            
-            local_state->sim_outputs.distance_attenuation = local_state->distance_attenuation_cache;
-            local_state->sim_outputs.listener_orientation = listener_coordinates;
-            local_state->sim_outputs.listener_orientation.origin = IPLVector3{0.0f,0.0f,0.0f};
-            local_state->sim_outputs.ambisonics_direction = GDVec3toIPLVec3(local_state->ambisonics_direction_cache.normalized());
-            iplSourceGetOutputs(local_state->source.src, IPL_SIMULATIONFLAGS_DIRECT, &(local_state->sim_outputs.direct_outputs));
-            local_state->sim_outputs.direct_valid = true;
-        local_state->sim_outputs_mutex.unlock();
+        SimOutputsSteamAudio * sim_outputs = &(local_state->sim_outputs);
+        int dir_wr_idx = get_write_direct_idx(sim_outputs);
+        int dir_rd_idx = get_read_direct_idx(sim_outputs);
+
+        sim_outputs->direct_outputs[dir_wr_idx].distance_attenuation = local_state->distance_attenuation_cache;
+        sim_outputs->direct_outputs[dir_wr_idx].listener_orientation = listener_coordinates;
+        sim_outputs->direct_outputs[dir_wr_idx].listener_orientation.origin = IPLVector3{0.0f,0.0f,0.0f};
+        sim_outputs->direct_outputs[dir_wr_idx].ambisonics_direction = GDVec3toIPLVec3(local_state->ambisonics_direction_cache.normalized());
+        iplSourceGetOutputs(local_state->source.src, IPL_SIMULATIONFLAGS_DIRECT, &(sim_outputs->direct_outputs[dir_wr_idx].direct_sim_outputs));
+        sim_outputs->direct_valid[dir_wr_idx].store(true);
+
+        //Move down to indirect processing later
+        sim_outputs->indirect_valid[0].store(true);
+        sim_outputs->indirect_valid[1].store(true);
+
+        bool read_direct_valid = sim_outputs->direct_valid[dir_rd_idx].load();
+        bool direct_read_done = sim_outputs->direct_read_done.load();
+        if (!read_direct_valid || direct_read_done) {
+            sim_outputs->direct_idx.store(1-sim_outputs->direct_idx.load());
+            sim_outputs->direct_read_done.store(false);
+        }
     }
-    return true; 
+
+    return;
 }
 
-bool SteamAudioServer::tick_indirect() {
+void SteamAudioServer::tick_indirect() {
 
     if (indirect_thread_processing.load())
-        return false;
+        return;
 //Should display an error for debugging here
     if (global_state_initialized.load()==false)
-        return false;
+        return;
     {
         std::unique_lock<std::mutex> lock(mtx);
         indirect_thread_processing.store(true);
@@ -120,7 +134,7 @@ bool SteamAudioServer::tick_indirect() {
             printf("Listener in steamaudiosrv pos: %f %f %f\n",sample.x,sample.y,sample.z);
         }
     }
-    return true;
+    return;
 }
 
 GlobalStateSteamAudio* SteamAudioServer::clone_global_state() {

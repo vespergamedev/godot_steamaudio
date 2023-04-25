@@ -36,13 +36,17 @@ SOFTWARE.
 
 int spatialize_steamaudio(GlobalStateSteamAudio& global_state,
                           LocalStateSteamAudio& local_state,
-                          EffectSteamAudio& effect,
-                          SimOutputsSteamAudio& sim_outputs) {
+                          EffectSteamAudio& effect) {
     if (local_state.work_buffer==nullptr) {
         return 0;
     }
 
-    if (sim_outputs.direct_valid==false) {
+    SimOutputsSteamAudio * sim_outputs = &(local_state.sim_outputs);
+
+    bool direct_valid = sim_outputs->direct_valid[get_read_direct_idx(sim_outputs)].load();
+    bool indirect_valid = sim_outputs->indirect_valid[get_read_indirect_idx(sim_outputs)].load();
+
+    if (!direct_valid || !indirect_valid) {
         return 0;
     }
 
@@ -51,25 +55,25 @@ int spatialize_steamaudio(GlobalStateSteamAudio& global_state,
     iplAudioBufferDownmix(global_state.phonon_ctx, &(local_state.in_buffer), &(local_state.mono_buffer));
     
     //Apply direct effect
-    IPLDirectEffectParams direct_effect_params = sim_outputs.direct_outputs.direct;
+    IPLDirectEffectParams direct_effect_params = sim_outputs->direct_outputs[get_read_direct_idx(sim_outputs)].direct_sim_outputs.direct;
 
     direct_effect_params.flags = static_cast<IPLDirectEffectFlags>(direct_effect_params.flags | IPL_DIRECTEFFECTFLAGS_APPLYDISTANCEATTENUATION);
     direct_effect_params.flags = static_cast<IPLDirectEffectFlags>(direct_effect_params.flags | IPL_DIRECTEFFECTFLAGS_APPLYOCCLUSION);
     direct_effect_params.flags = static_cast<IPLDirectEffectFlags>(direct_effect_params.flags | IPL_DIRECTEFFECTFLAGS_APPLYTRANSMISSION);
 
-    direct_effect_params.distanceAttenuation = sim_outputs.distance_attenuation;
+    direct_effect_params.distanceAttenuation = sim_outputs->direct_outputs[get_read_direct_idx(sim_outputs)].distance_attenuation;
     iplDirectEffectApply(effect.direct_effect, &direct_effect_params, &(local_state.in_buffer), &(local_state.direct_buffer));
 
     //Apply binaural effect
     IPLAmbisonicsEncodeEffectParams ambisonics_enc_effect_params{};
     ambisonics_enc_effect_params.order = global_state.sim_settings.maxOrder;
-    ambisonics_enc_effect_params.direction = sim_outputs.ambisonics_direction;
+    ambisonics_enc_effect_params.direction = sim_outputs->direct_outputs[get_read_direct_idx(sim_outputs)].ambisonics_direction;
     iplAmbisonicsEncodeEffectApply(effect.ambisonics_enc_effect, &ambisonics_enc_effect_params, &(local_state.direct_buffer), &(local_state.ambisonics_buffer));
 
     IPLAmbisonicsDecodeEffectParams ambisonics_dec_effect_params{};
     ambisonics_dec_effect_params.order = global_state.sim_settings.maxOrder;
     ambisonics_dec_effect_params.hrtf = global_state.hrtf;
-    ambisonics_dec_effect_params.orientation = sim_outputs.listener_orientation;
+    ambisonics_dec_effect_params.orientation = sim_outputs->direct_outputs[get_read_direct_idx(sim_outputs)].listener_orientation;
     ambisonics_dec_effect_params.binaural = IPL_TRUE;
     iplAmbisonicsDecodeEffectApply(effect.ambisonics_dec_effect, &ambisonics_dec_effect_params, &(local_state.ambisonics_buffer), &(local_state.out_buffer)); 
 
@@ -78,6 +82,9 @@ int spatialize_steamaudio(GlobalStateSteamAudio& global_state,
     //Mix
 
     iplAudioBufferInterleave(global_state.phonon_ctx, &(local_state.out_buffer), (float *)local_state.work_buffer);
+
+    sim_outputs->direct_read_done.store(true);
+    sim_outputs->indirect_read_done.store(true);
 
     return 0;
 }
@@ -134,8 +141,11 @@ int init_global_state_steamaudio(GlobalStateSteamAudio& global_state) {
 
 int init_local_state_steamaudio(GlobalStateSteamAudio& global_state, LocalStateSteamAudio& local_state) {
     local_state.spatial_blend = 1.0f;
-    local_state.sim_outputs.direct_valid = false;
-    local_state.sim_outputs.indirect_valid = false;
+    local_state.sim_outputs.direct_valid[0].store(false);
+    local_state.sim_outputs.direct_valid[1].store(false);
+
+    local_state.sim_outputs.indirect_valid[0].store(false);
+    local_state.sim_outputs.indirect_valid[1].store(false);
     local_state.work_buffer = (AudioFrame *)memalloc(sizeof(AudioFrame)*global_state.buffer_size);
     if (local_state.work_buffer == nullptr) {
         printf("Failed to alloc mem for work buffer\n");

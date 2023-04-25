@@ -143,14 +143,13 @@ int AudioStreamPlaybackSteamAudio::mix(AudioFrame *p_buffer, float p_rate_scale,
 	for (int i = 0; i < p_frames; i++) {
 		p_buffer[i] = AudioFrame(0, 0);
 	}
-        SimOutputsSteamAudio sim_outputs_copy;
-        local_state.sim_outputs_mutex.lock();
-        sim_outputs_copy = local_state.sim_outputs;
-        if (sim_outputs_copy.direct_valid == false) {
-            skip_mix = true;        
-        }
-        local_state.sim_outputs_mutex.unlock();
-        if (skip_mix==true) {
+        SimOutputsSteamAudio * sim_outputs = &(local_state.sim_outputs);
+
+        //If either output is invalid, we'll skip
+        bool direct_valid = sim_outputs->direct_valid[get_read_direct_idx(sim_outputs)];
+        bool indirect_valid = sim_outputs->indirect_valid[get_read_indirect_idx(sim_outputs)];
+
+        if (!direct_valid || !indirect_valid) {
             return p_frames;
         }
 	for (Stream &s : streams) {
@@ -176,7 +175,7 @@ int AudioStreamPlaybackSteamAudio::mix(AudioFrame *p_buffer, float p_rate_scale,
                 memset(local_state.work_buffer,0,sizeof(AudioFrame)*global_state->buffer_size);
                 int mixed = s.stream_playback->mix(local_state.work_buffer, s.pitch_scale, p_frames); 
                 if (mixed==p_frames) {
-                    spatialize_steamaudio(*global_state, local_state, s.effect, sim_outputs_copy);
+                    spatialize_steamaudio(*global_state, local_state, s.effect);
                 }
  
                for (int i = 0; i < p_frames; i++) {
