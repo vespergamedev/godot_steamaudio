@@ -131,7 +131,6 @@ void AudioStreamPlaybackSteamAudio::tag_used_streams() {
 }
 
 int AudioStreamPlaybackSteamAudio::mix(AudioFrame *p_buffer, float p_rate_scale, int p_frames) {
-        bool skip_mix = false;
 	if (!active) {
             return 0;
 	}
@@ -262,7 +261,7 @@ void AudioStreamPlaybackSteamAudio::stop_stream(ID p_stream_id) {
 bool AudioStreamPlaybackSteamAudio::init_source_steamaudio(AudioStreamPlayerSteamAudio * player) {
     local_state.source.steamaudio_player = player;
     IPLSourceSettings source_settings{};
-    source_settings.flags = IPL_SIMULATIONFLAGS_DIRECT;
+    source_settings.flags = static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT|IPL_SIMULATIONFLAGS_REFLECTIONS);
     
     IPLerror errorCode = iplSourceCreate(global_state->simulator, &source_settings, &(local_state.source.src));
     if (errorCode) {
