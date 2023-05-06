@@ -40,6 +40,10 @@ inline int num_channels_for_order(int order) {
     return ((order+1)*(order+1));
 }
 
+inline int num_samps_for_duration(float duration, int sampling_rate) {
+    return (int)(ceilf(duration*sampling_rate));
+}
+
 inline Vector3 IPLVec3toGDVec3(IPLVector3 vec_in) {
     return Vector3{vec_in.x,vec_in.y,vec_in.z};
 }
@@ -62,6 +66,7 @@ struct EffectSteamAudio {
     IPLAmbisonicsDecodeEffectSettings ambisonics_dec_settings{};
     IPLAmbisonicsEncodeEffectSettings ambisonics_enc_settings{};
 
+
 //Effects
     IPLBinauralEffect binaural_effect = nullptr;
     IPLDirectEffect direct_effect = nullptr;
@@ -69,6 +74,8 @@ struct EffectSteamAudio {
     IPLPathEffect path_effect = nullptr;
     IPLAmbisonicsDecodeEffect ambisonics_dec_effect = nullptr;
     IPLAmbisonicsEncodeEffect ambisonics_enc_effect = nullptr;
+    IPLAmbisonicsDecodeEffect indirect_ambisonics_dec_effect = nullptr;
+    
 };
 
 struct DirectOutputsSteamAudio {
@@ -123,6 +130,15 @@ struct GlobalStateSteamAudio {
     IPLSimulationSettings sim_settings{};
     IPLScene scene = nullptr;
     IPLSceneSettings scene_settings{};
+
+// CPU Ray-tracing
+    IPLEmbreeDevice embree_device = nullptr;
+// GPU Ray-tracing
+    IPLRadeonRaysDevice radeon_rays_device = nullptr;
+    IPLOpenCLDevice  opencl_device = nullptr;
+    IPLTrueAudioNextDevice tan_device = nullptr;
+
+    bool use_radeon_rays = false;
 
     unsigned int buffer_size;    
 };

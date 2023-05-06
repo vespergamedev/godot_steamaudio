@@ -56,9 +56,7 @@ public:
     static SteamAudioServer * get_singleton();
     Error init();
     void finish();
-    bool is_indirect_busy();
-    void tick_indirect();
-    void tick_direct();
+    void tick();
     bool register_listener(SteamAudioListener * rx);
     bool deregister_listener();
     bool add_source(LocalStateSteamAudio * local_state);

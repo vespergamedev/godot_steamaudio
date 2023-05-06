@@ -78,8 +78,18 @@ int spatialize_steamaudio(GlobalStateSteamAudio& global_state,
     iplAmbisonicsDecodeEffectApply(effect.ambisonics_dec_effect, &ambisonics_dec_effect_params, &(local_state.ambisonics_buffer), &(local_state.out_buffer)); 
 
     //Apply reflections and/or pathing
+    IPLReflectionEffectParams refl_effect_params = sim_outputs->indirect_outputs[get_read_indirect_idx(sim_outputs)].indirect_sim_outputs.reflections;
+    refl_effect_params.type = global_state.sim_settings.reflectionType; 
+    refl_effect_params.numChannels = num_channels_for_order(global_state.sim_settings.maxOrder);
+    refl_effect_params.irSize = num_samps_for_duration(global_state.sim_settings.maxDuration, global_state.audio_settings.samplingRate);
+    iplReflectionEffectApply(effect.refl_effect, &refl_effect_params, &(local_state.mono_buffer), &(local_state.refl_buffer), nullptr);
+    iplAmbisonicsDecodeEffectApply(effect.indirect_ambisonics_dec_effect, &ambisonics_dec_effect_params, &(local_state.refl_buffer), &(local_state.spat_buffer));
+    
+
 
     //Mix
+    iplAudioBufferMix(global_state.phonon_ctx, &(local_state.spat_buffer), &(local_state.out_buffer));
+
 
     iplAudioBufferInterleave(global_state.phonon_ctx, &(local_state.out_buffer), (float *)local_state.work_buffer);
 
@@ -115,6 +125,66 @@ int init_global_state_steamaudio(GlobalStateSteamAudio& global_state) {
     }
 
     global_state.scene_settings.type = IPL_SCENETYPE_DEFAULT;
+
+    global_state.opencl_device = nullptr;
+    global_state.tan_device = nullptr;
+
+   //This would be a good point to check Godot project settings for the type of raytracer to use for indirect sims
+   // global_state.use_radeon_rays = ??
+   // also, opencl may not be supported on all platforms, so fallback should be to use embree
+   // this may especially be the case on Linux platforms
+
+    //Get these from project settings
+
+    IPLSceneType scene_type = IPL_SCENETYPE_EMBREE;
+    if (global_state.use_radeon_rays) {
+
+        IPLOpenCLDeviceSettings ocl_device_settings{};
+        ocl_device_settings.type = IPL_OPENCLDEVICETYPE_ANY;
+        ocl_device_settings.numCUsToReserve = 0;
+        ocl_device_settings.fractionCUsForIRUpdate = 0.0;
+        ocl_device_settings.requiresTAN = IPL_FALSE; 
+
+        IPLOpenCLDeviceList ocl_device_list = nullptr;
+        error_code = iplOpenCLDeviceListCreate(global_state.phonon_ctx, &(ocl_device_settings), &(ocl_device_list));
+        if (error_code) {
+            printf("Err code for iplOpenCLDeviceListCreate: %d\n", error_code);
+            printf("Falling back to Embree (CPU)\n");
+            global_state.use_radeon_rays = false;
+        } else {
+            int num_ocl_devs = iplOpenCLDeviceListGetNumDevices(ocl_device_list);
+
+            for (int i = 0; i < num_ocl_devs; i++) {
+                IPLOpenCLDeviceDesc ocl_device_desc;
+                iplOpenCLDeviceListGetDeviceDesc(ocl_device_list,i,&(ocl_device_desc));
+                printf("Found openCL device: %s %s %s\n",ocl_device_desc.platformName, ocl_device_desc.platformVendor, ocl_device_desc.platformVersion);
+                printf("%s %s %s\n", ocl_device_desc.deviceName, ocl_device_desc.deviceVendor, ocl_device_desc.deviceVersion);
+                printf("Is CPU? %d\n", ocl_device_desc.type==IPL_OPENCLDEVICETYPE_CPU ? 1 : 0);
+                printf("Is GPU? %d\n", ocl_device_desc.type==IPL_OPENCLDEVICETYPE_GPU ? 1 : 0);
+            }
+
+            //Actually initialize radeon_rays_device here and set scenetype
+            scene_type = IPL_SCENETYPE_RADEONRAYS;
+            iplOpenCLDeviceListRelease(&(ocl_device_list));
+            
+        }
+    }
+
+    if (!global_state.use_radeon_rays) {
+        //create Embree device
+        IPLEmbreeDeviceSettings embree_device_settings{};
+        error_code = iplEmbreeDeviceCreate(global_state.phonon_ctx, &(embree_device_settings), &(global_state.embree_device));
+        if (error_code) {
+            printf("Err code for iplEmbreeDeviceCreate: %d\n", error_code);
+            return (int)error_code;
+        }
+    }
+
+    global_state.scene_settings.type = scene_type;
+    global_state.scene_settings.embreeDevice = global_state.embree_device;
+    global_state.scene_settings.radeonRaysDevice = global_state.radeon_rays_device;
+
+
     global_state.scene = nullptr;
     error_code = iplSceneCreate(global_state.phonon_ctx, &(global_state.scene_settings), &(global_state.scene));
     if (error_code) {
@@ -122,10 +192,23 @@ int init_global_state_steamaudio(GlobalStateSteamAudio& global_state) {
         return (int)error_code;
     }
 
-    global_state.sim_settings.flags = IPL_SIMULATIONFLAGS_DIRECT;
-    global_state.sim_settings.sceneType = IPL_SCENETYPE_DEFAULT;
+    global_state.sim_settings.flags = static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS);
+    global_state.sim_settings.sceneType = global_state.scene_settings.type;
     global_state.sim_settings.maxNumOcclusionSamples = MAX_OCCLUSION_NUM_SAMPLES;
     global_state.sim_settings.frameSize = global_state.buffer_size;
+    global_state.sim_settings.samplingRate = mix_rate;
+
+    global_state.sim_settings.reflectionType = IPL_REFLECTIONEFFECTTYPE_CONVOLUTION;
+    global_state.sim_settings.maxNumSources = 256;
+    global_state.sim_settings.numThreads = 2;
+    global_state.sim_settings.numDiffuseSamples = 32;
+    global_state.sim_settings.maxNumRays =  4096;
+    global_state.sim_settings.maxDuration = 2.0f;
+    global_state.sim_settings.rayBatchSize = 1;
+    global_state.sim_settings.radeonRaysDevice = global_state.radeon_rays_device;
+    global_state.sim_settings.openCLDevice = global_state.opencl_device;
+    global_state.sim_settings.tanDevice = global_state.tan_device;
+
     global_state.simulator = nullptr;
     error_code = iplSimulatorCreate(global_state.phonon_ctx, &(global_state.sim_settings), &(global_state.simulator));
     if (error_code) {
@@ -218,12 +301,27 @@ int init_effect_steamaudio(GlobalStateSteamAudio& global_state, EffectSteamAudio
         return (int)error_code;
     }
 
+    effect.refl_settings.numChannels = num_channels_for_order(global_state.sim_settings.maxOrder);
+    effect.refl_settings.irSize = num_samps_for_duration(global_state.sim_settings.maxDuration, global_state.audio_settings.samplingRate);
+    effect.refl_settings.type = global_state.sim_settings.reflectionType; 
+    error_code = iplReflectionEffectCreate(global_state.phonon_ctx, &(global_state.audio_settings), &(effect.refl_settings), &(effect.refl_effect));
+    if (error_code) {
+        printf("Err code for iplReflectionEffectCreate: %d\n", error_code);
+        return (int)error_code;
+    }
+
     effect.ambisonics_dec_settings.hrtf = global_state.hrtf;
     effect.ambisonics_dec_settings.maxOrder = global_state.sim_settings.maxOrder;
     IPLSpeakerLayout speaker_layout{};
     speaker_layout.type = IPL_SPEAKERLAYOUTTYPE_STEREO;
     effect.ambisonics_dec_settings.speakerLayout = speaker_layout;
     error_code = iplAmbisonicsDecodeEffectCreate(global_state.phonon_ctx, &(global_state.audio_settings), &(effect.ambisonics_dec_settings), &(effect.ambisonics_dec_effect));
+    if (error_code) {
+        printf("Err code for iplAmbisonicsDecodeEffectCreate: %d\n", error_code);
+        return (int)error_code;
+    }
+
+    error_code = iplAmbisonicsDecodeEffectCreate(global_state.phonon_ctx, &(global_state.audio_settings), &(effect.ambisonics_dec_settings), &(effect.indirect_ambisonics_dec_effect));
     if (error_code) {
         printf("Err code for iplAmbisonicsDecodeEffectCreate: %d\n", error_code);
         return (int)error_code;
@@ -264,8 +362,10 @@ int deinit_effect_steamaudio(GlobalStateSteamAudio& global_state, EffectSteamAud
     iplBinauralEffectRelease(&(effect.binaural_effect));
     iplDirectEffectRelease(&(effect.direct_effect));
     iplPathEffectRelease(&(effect.path_effect));
+    iplReflectionEffectRelease(&(effect.refl_effect));
     iplAmbisonicsDecodeEffectRelease(&(effect.ambisonics_dec_effect));
     iplAmbisonicsEncodeEffectRelease(&(effect.ambisonics_enc_effect));
+    iplAmbisonicsDecodeEffectRelease(&(effect.indirect_ambisonics_dec_effect));
 
     return 0;
 }
