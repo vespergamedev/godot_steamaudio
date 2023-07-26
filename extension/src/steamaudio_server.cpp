@@ -24,6 +24,7 @@ SOFTWARE.
 
 #include "steamaudio_server.h"
 #include "audio_stream_player_steamaudio.h"
+#include <godot_cpp/core/class_db.hpp>
 
 void SteamAudioServer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("tick"), &SteamAudioServer::tick);

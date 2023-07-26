@@ -25,10 +25,14 @@ SOFTWARE.
 #ifndef GODOT_STEAMAUDIO_H
 #define GODOT_STEAMAUDIO_H
 
-#include "core/object/ref_counted.h"
-#include "servers/audio/audio_stream.h"
-#include "scene/3d/node_3d.h"
+#include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/classes/audio_stream.hpp>
+#include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/audio_frame.hpp>
+#include <godot_cpp/classes/mutex.hpp>
 #include <phonon.h>
+
+using namespace godot;
 
 #define MAX_OCCLUSION_NUM_SAMPLES 16
 #define MAX_AMBISONICS_ORDER_DEFAULT 2

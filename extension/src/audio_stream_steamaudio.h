@@ -33,9 +33,12 @@
 #ifndef AUDIO_STREAM_STEAMAUDIO_H
 #define AUDIO_STREAM_STEAMAUDIO_H
 
-#include "core/templates/local_vector.h"
-#include "servers/audio/audio_stream.h"
+#include <godot_cpp/templates/local_vector.hpp>
+#include <godot_cpp/classes/audio_stream_playback.hpp>
+#include <godot_cpp/classes/audio_stream.hpp>
 #include "godot_steamaudio.h"
+
+using namespace godot;
 
 class AudioStreamSteamAudio : public AudioStream {
 	GDCLASS(AudioStreamSteamAudio, AudioStream)

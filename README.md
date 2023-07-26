@@ -1,3 +1,5 @@
+NOTE: The GDExtension version of this repo is based on the template provided by paddy-exe: https://github.com/paddy-exe/GDExtensionSummator 
+
 **Godot Steam&reg;Audio**
 
 This is a Godot 4.x module that adds support for Valve's Steam&reg; Audio SDK/Library for spatialization of sound in a 3D space. This module provides an integration with the Godot (4.x) game engine and is MIT-licensed (MODULELICENSE.md), but the Steam&reg; Audio SDK/Library itself is licensed under Valve's own license (VALVELICENCE.md) and thus if you use this module you are bound by Valve's terms.

@@ -31,10 +31,10 @@
 //Above notice retained as this is largely based on AudioStreamPlayer
 
 #include "audio_stream_player_steamaudio.h"
-
-#include "core/config/engine.h"
-#include "core/math/audio_frame.h"
-#include "servers/audio_server.h"
+#include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/audio_frame.hpp>
+#include <godot_cpp/classes/audio_server.hpp>
 
 void AudioStreamPlayerSteamAudio::_notification(int p_what) {
 	switch (p_what) {
@@ -62,7 +62,7 @@ void AudioStreamPlayerSteamAudio::_notification(int p_what) {
 				set_process_internal(false);
 			}
 			if (!playbacks_to_remove.is_empty()) {
-				emit_signal(SNAME("finished"));
+				emit_signal(StringName("finished"));
 			}
 		} break;
 
@@ -202,7 +202,7 @@ StringName AudioStreamPlayerSteamAudio::get_bus() const {
 			return bus;
 		}
 	}
-	return SNAME("Master");
+	return StringName("Master");
 }
 
 void AudioStreamPlayerSteamAudio::set_autoplay(bool p_enable) {
@@ -260,30 +260,43 @@ Vector<AudioFrame> AudioStreamPlayerSteamAudio::_get_volume_vector() {
 
 	// Initialize the volume vector to zero.
 	for (AudioFrame &channel_volume_db : volume_vector) {
-		channel_volume_db = AudioFrame(0, 0);
+		channel_volume_db.left = 0.0f;
+                channel_volume_db.right = 0.0f;
 	}
 
-	float volume_linear = Math::db_to_linear(volume_db);
+	float volume_linear = Math::db2linear(volume_db);
 
 	// Set the volume vector up according to the speaker mode and mix target.
 	// TODO do we need to scale the volume down when we output to more channels?
 	if (AudioServer::get_singleton()->get_speaker_mode() == AudioServer::SPEAKER_MODE_STEREO) {
-		volume_vector.write[0] = AudioFrame(volume_linear, volume_linear);
+		volume_vector.write[0].left = volume_linear;
+                volume_vector.write[0].right = volume_linear;
 	} else {
 		switch (mix_target) {
 			case MIX_TARGET_STEREO: {
-				volume_vector.write[0] = AudioFrame(volume_linear, volume_linear);
+				volume_vector.write[0].left = volume_linear;
+				volume_vector.write[0].right = volume_linear;                                
 			} break;
 			case MIX_TARGET_SURROUND: {
 				// TODO Make sure this is right.
-				volume_vector.write[0] = AudioFrame(volume_linear, volume_linear);
-				volume_vector.write[1] = AudioFrame(volume_linear, /* LFE= */ 1.0f);
-				volume_vector.write[2] = AudioFrame(volume_linear, volume_linear);
-				volume_vector.write[3] = AudioFrame(volume_linear, volume_linear);
+				volume_vector.write[0].left = volume_linear;
+				volume_vector.write[0].right = volume_linear;
+
+				volume_vector.write[1].left = volume_linear;
+				volume_vector.write[1].right = 1.0f;
+
+				volume_vector.write[2].left = volume_linear;
+				volume_vector.write[2].right = volume_linear;
+
+				volume_vector.write[3].left = volume_linear;
+				volume_vector.write[3].right = volume_linear;
+
 			} break;
 			case MIX_TARGET_CENTER: {
 				// TODO Make sure this is right.
-				volume_vector.write[1] = AudioFrame(volume_linear, /* LFE= */ 1.0f);
+				volume_vector.write[1].left = volume_linear;
+				volume_vector.write[1].right = 1.0f;
+
 			} break;
 		}
 	}

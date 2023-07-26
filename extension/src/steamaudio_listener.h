@@ -22,13 +22,21 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ******************************************************************************/
 
-/* register_types.h */
-#ifndef GODOT_STEAMAUDIO_REGISTER_TYPES_H
-#define GODOT_STEAMAUDIO_REGISTER_TYPES_H
+#ifndef STEAMAUDIO_LISTENER_H
+#define STEAMAUDIO_LISTENER_H
 
-#include "modules/register_module_types.h"
+#include <godot_cpp/classes/node3d.hpp>
 
-void initialize_godot_steamaudio_module(ModuleInitializationLevel p_level);
-void uninitialize_godot_steamaudio_module(ModuleInitializationLevel p_level);
+using namespace godot;
 
-#endif // GODOT_STEAMAUDIO_REGISTER_TYPES_H
+class SteamAudioListener : public Node3D {
+	GDCLASS(SteamAudioListener, Node3D);
+protected:
+        static void _bind_methods();
+public:
+	SteamAudioListener();
+	~SteamAudioListener();
+};
+
+
+#endif // STEAMAUDIO_LISTENER

@@ -32,7 +32,9 @@
 
 #include "audio_stream_steamaudio.h"
 #include "steamaudio_server.h"
-#include "scene/main/scene_tree.h"
+#include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/audio_server.hpp>
 #include <unistd.h>
 
 Ref<AudioStreamPlayback> AudioStreamSteamAudio::instantiate_playback() {
@@ -140,7 +142,8 @@ int AudioStreamPlaybackSteamAudio::mix(AudioFrame *p_buffer, float p_rate_scale,
 
 	// Pre-clear buffer.
 	for (int i = 0; i < p_frames; i++) {
-		p_buffer[i] = AudioFrame(0, 0);
+		p_buffer[i].left = 0.0f;
+                p_buffer[i].right = 0.0f;
 	}
         SimOutputsSteamAudio * sim_outputs = &(local_state.sim_outputs);
 
@@ -157,7 +160,7 @@ int AudioStreamPlaybackSteamAudio::mix(AudioFrame *p_buffer, float p_rate_scale,
 		}
 
 		float volume_db = s.volume_db; // Copy because it can be overridden at any time.
-		float volume = Math::db_to_linear(volume_db);
+		float volume = Math::db2linear(volume_db);
 
 		if (s.finish_request.is_set()) {
 			if (s.pending_play.is_set()) {
@@ -178,7 +181,9 @@ int AudioStreamPlaybackSteamAudio::mix(AudioFrame *p_buffer, float p_rate_scale,
                 }
  
                for (int i = 0; i < p_frames; i++) {
-                    p_buffer[i] += volume*local_state.work_buffer[i];
+                    p_buffer[i].left += volume*local_state.work_buffer[i].left;
+                    p_buffer[i].right += volume*local_state.work_buffer[i].right;
+
                 }
                 if (mixed<p_frames) {
                     s.active.clear();

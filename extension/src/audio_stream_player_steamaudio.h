@@ -33,11 +33,15 @@
 #ifndef AUDIO_STREAM_PLAYER_STEAMAUDIO_H
 #define AUDIO_STREAM_PLAYER_STEAMAUDIO_H
 
-#include "core/templates/safe_refcount.h"
-#include "scene/3d/node_3d.h"
-#include "servers/audio/audio_stream.h"
+#include <godot_cpp/core/defs.hpp>
+#include <godot_cpp/templates/safe_refcount.hpp>
+#include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/audio_stream.hpp>
 #include "audio_stream_steamaudio.h"
 #include "godot_steamaudio.h"
+
+using namespace godot;
+
 class AudioStreamPlayerSteamAudio : public Node3D {
 	GDCLASS(AudioStreamPlayerSteamAudio, Node3D);
 
@@ -57,7 +61,7 @@ private:
 	float pitch_scale = 1.0;
 	float volume_db = 0.0;
 	bool autoplay = false;
-	StringName bus = SNAME("Master");
+	StringName bus = StringName("Master");
 	int max_polyphony = 1;
 
 	MixTarget mix_target = MIX_TARGET_STEREO;

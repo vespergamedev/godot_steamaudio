@@ -25,10 +25,8 @@ SOFTWARE.
 /* godot_steamaudio.cpp */
 
 #include "godot_steamaudio.h"
-#include "core/math/math_funcs.h"
-#include "core/string/print_string.h"
-#include "core/typedefs.h"
-#include "core/config/project_settings.h"
+#include <godot_cpp/core/math.hpp>
+#include <godot_cpp/classes/project_settings.hpp>
 #include <stdio.h>
 
 #define N_CHANNELS_INOUT 2
@@ -107,8 +105,9 @@ int init_global_state_steamaudio(GlobalStateSteamAudio& global_state) {
         printf("Err code for iplContextCreate: %d\n",error_code);
         return (int)error_code;
     }
-    float mix_rate = GLOBAL_GET("audio/driver/mix_rate");
-    int latency = GLOBAL_GET("audio/driver/output_latency"); 
+
+    float mix_rate = ProjectSettings::get_singleton()->get_setting_with_override(StringName("audio/driver/mix_rate"));
+    int latency = ProjectSettings::get_singleton()->get_setting_with_override(StringName("audio/driver/output_latency")); 
     global_state.buffer_size = closest_power_of_2(latency * mix_rate / 1000);
     printf("mix_rate %f latency %d buffer_size %u\n", mix_rate, latency, global_state.buffer_size);   
 

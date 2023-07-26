@@ -25,13 +25,16 @@ SOFTWARE.
 #ifndef STEAMAUDIO_SERVER_H
 #define STEAMAUDIO_SERVER_H
 
-#include "core/object/object.h"
-#include "core/os/thread.h"
+#include <godot_cpp/classes/object.hpp>
+#include <godot_cpp/classes/thread.hpp>
+#include <godot_cpp/templates/vector.hpp>
 #include "godot_steamaudio.h"
 #include "steamaudio_listener.h"
 #include <mutex>
 #include <atomic>
 #include <condition_variable>
+
+using namespace godot;
 
 class SteamAudioServer : public Object {
     GDCLASS(SteamAudioServer, Object);

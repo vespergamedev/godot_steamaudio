@@ -25,9 +25,14 @@ SOFTWARE.
 #ifndef STEAMAUDIO_GEOMETRY_H
 #define STEAMAUDIO_GEOMETRY_H
 
-#include "scene/3d/node_3d.h"
+#include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/templates/vector.hpp>
 #include "steamaudio_server.h"
-#include "scene/3d/mesh_instance_3d.h"
+#include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/mesh.hpp>
+
+using namespace godot;
+
 class SteamAudioGeometry : public Node3D {
     GDCLASS(SteamAudioGeometry, Node3D);
 public:

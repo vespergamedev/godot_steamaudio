@@ -23,6 +23,7 @@ SOFTWARE.
 ******************************************************************************/
 
 #include "steamaudio_geometry.h"
+#include <godot_cpp/core/class_db.hpp>
 
 SteamAudioGeometry::SteamAudioGeometry() {
     global_state = SteamAudioServer::get_singleton()->clone_global_state();

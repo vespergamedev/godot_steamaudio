@@ -1,8 +1,0 @@
-# SCsub
-import os
-Import('env')
-
-env.add_source_files(env.modules_sources, "*.cpp") # Add all cpp files to the build
-env.Append(CPPPATH=["external/steamaudio/include"])
-env.Append(LIBPATH=[os.getcwd() + "/external/steamaudio/lib/linux-x64"])
-env.Append(LINKFLAGS=["-lphonon",'-Wl,-rpath,\'$$ORIGIN\':.'])
